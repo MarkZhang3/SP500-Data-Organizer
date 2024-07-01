@@ -58,7 +58,8 @@ save(capiq_merger_dataset_2020, file=initial_collated_merger_data_file)
 
 print(paste("merger data processing complete/saved in ", initial_collated_merger_data_file))
 
-chk = capiq_merger_dataset_2020 %>% mutate(ann_year = lubridate::year(`M&A Announced Date`)) %>%  
+# MZ: changed 'M&A Announced Date' to 'M&A Announced Date (Including Bids and Letters of Intent)'
+chk = capiq_merger_dataset_2020 %>% mutate(ann_year = lubridate::year(`M&A Announced Date (Including Bids and Letters of Intent)`)) %>%  
   group_by(ann_year) %>% mutate(cash_offered_ind = ifelse(`Consideration Offered`=='Cash',1,0)) %>%
   summarize(cash_pct = mean(`Cash % of Consideration (%)`,na.rm=T), cash_offered_share = sum(cash_offered_ind)/n())
 
@@ -78,6 +79,7 @@ merger_files = merger_files[grepl('xls', merger_files)]
 
 col_type_list = c('date', 'text', 'text', 'text', 'numeric','text','text','text','numeric','numeric','text','numeric','numeric','numeric','numeric','numeric','numeric','numeric','text','text','text','numeric','numeric','numeric','numeric','numeric','numeric','numeric', 'numeric','numeric','text','text','text','text','text', 'numeric','numeric','text','text','date','date','date','date','date','date',
                   'text','text',rep('numeric',16),rep('text',7),'numeric','numeric','numeric','numeric','text','text')
+
 require(svMisc)                  
 merger_data_list = vector('list', length(merger_files))
 for(fn in merger_files){
@@ -131,14 +133,40 @@ print(paste("selloff data processing complete/saved in ", CIQ_selloff_dataset_fi
 capiq_mergerSellOff_dataset_2020_mergersOnly = capiq_mergerSellOff_dataset_2020 %>% filter(`Transaction Types`=="Merger/Acquisition")
 capiq_mergerSellOff_dataset_2020_mergersOnly = capiq_mergerSellOff_dataset_2020_mergersOnly %>% mutate(selloff_ind =1)
 capiq_merger_dataset_2020 = capiq_merger_dataset_2020 %>% select(-`M&A Announced Date (Including Bids and Letters of Intent)`)
-capiq_merger_dataset_2020 = capiq_merger_dataset_2020 %>% select(-`M&A Announced Date`)
+# MZ commented out: capiq_merger_dataset_2020 = capiq_merger_dataset_2020 %>% select(-`M&A Announced Date`)
 
 # re-order the selloff data to be commensurate with the the original merger data downloaded
-capiq_mergerSellOff_dataset_2020_mergersOnly = capiq_mergerSellOff_dataset_2020_mergersOnly[,names(capiq_merger_dataset_2020)]
-capiq_merger_dataset_2020 = capiq_merger_dataset_2020[,names(capiq_mergerSellOff_dataset_2020_mergersOnly)]
-full_capiq_merger_dataset_2020 = rbind(capiq_merger_dataset_2020,capiq_mergerSellOff_dataset_2020_mergersOnly)
-full_capiq_merger_dataset_2020 = full_capiq_merger_dataset_2020 %>% select(-`Target Security Types`)
-full_capiq_merger_dataset_2020 = unique(full_capiq_merger_dataset_2020)
+# MZ: Rename columns
+names(capiq_mergerSellOff_dataset_2020_mergersOnly)[names(capiq_mergerSellOff_dataset_2020_mergersOnly) == "Total Transaction Value ($USDmm, Historical rate)"] <- "Total Transaction Value (CADmm, Historical rate)"
+names(capiq_mergerSellOff_dataset_2020_mergersOnly)[names(capiq_mergerSellOff_dataset_2020_mergersOnly) == "Spin-off/Split-off Announced Date (Including Letters of Intent)"] <- "M&A Announced Date (Including Bids and Letters of Intent)"
+names(capiq_mergerSellOff_dataset_2020_mergersOnly)[names(capiq_mergerSellOff_dataset_2020_mergersOnly) == "Spin-off/Split-off Definitive Agreement Date"] <- "M&A Definitive Agreement Date"
+names(capiq_mergerSellOff_dataset_2020_mergersOnly)[names(capiq_mergerSellOff_dataset_2020_mergersOnly) == "Spin-off/Split-off Closed Date"] <- "M&A Closed Date"
+names(capiq_mergerSellOff_dataset_2020_mergersOnly)[names(capiq_mergerSellOff_dataset_2020_mergersOnly) == "Spin-off/Split-off Cancelled Date"] <- "M&A Cancelled Date"
+names(capiq_mergerSellOff_dataset_2020_mergersOnly)[names(capiq_mergerSellOff_dataset_2020_mergersOnly) == "Spin-off/Split-off Effective Date"] <- "M&A Effective Date"
+names(capiq_mergerSellOff_dataset_2020_mergersOnly)[names(capiq_mergerSellOff_dataset_2020_mergersOnly) == "Net Assumed Liabilities ($USDmm, Historical rate)"] <- "Net Assumed Liabilities (CADmm, Historical rate)"
+
+# capiq_mergerSellOff_dataset_2020_mergersOnly = capiq_mergerSellOff_dataset_2020_mergersOnly[,names(capiq_merger_dataset_2020)]
+# capiq_merger_dataset_2020 = capiq_merger_dataset_2020[,names(capiq_mergerSellOff_dataset_2020_mergersOnly)]
+# full_capiq_merger_dataset_2020 = rbind(capiq_merger_dataset_2020,capiq_mergerSellOff_dataset_2020_mergersOnly)
+#MZ change to: 
+# Identify all unique columns from both dataframes
+all_columns <- union(names(capiq_mergerSellOff_dataset_2020_mergersOnly), names(capiq_merger_dataset_2020))
+
+# Add missing columns with NA values to capiq_mergerSellOff_dataset_2020_mergersOnly
+missing_columns_1 <- setdiff(all_columns, names(capiq_mergerSellOff_dataset_2020_mergersOnly))
+capiq_mergerSellOff_dataset_2020_mergersOnly[missing_columns_1] <- NA
+
+# Add missing columns with NA values to capiq_merger_dataset_2020
+missing_columns_2 <- setdiff(all_columns, names(capiq_merger_dataset_2020))
+capiq_merger_dataset_2020[missing_columns_2] <- NA
+
+# Ensure both dataframes have the same column order
+capiq_mergerSellOff_dataset_2020_mergersOnly <- capiq_mergerSellOff_dataset_2020_mergersOnly[, all_columns]
+capiq_merger_dataset_2020 <- capiq_merger_dataset_2020[, all_columns]
+
+# Combine the dataframes using rbind
+full_capiq_merger_dataset_2020 <- rbind(capiq_mergerSellOff_dataset_2020_mergersOnly, capiq_merger_dataset_2020)
+#### end of change
 
 
 full_capiq_merger_dataset_2020_w_cancelled_transactions= full_capiq_merger_dataset_2020

@@ -11,6 +11,9 @@ setwd(subsidiary_data_dir)
 
 # 2) Append the 
 
+## In this file, changed Relationship.Type to "Relationship Type" for corporate trees and investment
+## changed Company.Name to "parent_name" for investment 
+
 raw_files = list.files()
 raw_tree_files = raw_files[grepl('Structure Tree', raw_files)] # get corporate tree files
 raw_invest_files = raw_files[grepl('Direct Investments', raw_files)] # get Investments
@@ -38,7 +41,7 @@ print(names(corporate_tree_dataset_2020))
 
 
 # fix the handful of files / observations with corrupted spacing 
-# MZ: changed Relationship.Type in nchar() to current one
+# MZ: changed Relationship.Type in nchar() to just 'Relationship Type'
 prob_obs = corporate_tree_dataset_2020 %>% filter(nchar('Relationship Type')>nchar('Current Subsidiary/Operating Unit'))
 print(unique(prob_obs$parent_name))
 corporate_tree_dataset_2020 = corporate_tree_dataset_2020 %>%filter(nchar('Relationship Type')<=nchar('Current Subsidiary/Operating Unit'))
@@ -46,11 +49,6 @@ corporate_tree_dataset_2020 = corporate_tree_dataset_2020 %>%filter(nchar('Relat
 missing_obs = read_csv('ProctorGambleSupplementCorpTree.csv')
 tmp_pad = matrix('', nrow(missing_obs), ncol=ncol(corporate_tree_dataset_2020) - ncol(missing_obs))
 tmp_pad = as.data.frame(tmp_pad)
-# indx = which(grepl('X[0-9]',names(missing_obs)))
-# n_nums = names(missing_obs)[indx]
-# n_nums = seq(1, length(nums))
-# 
-#names(missing_obs)[indx] = paste('X.',n_nums, sep='')
 
 missing_obs = data.frame(missing_obs, tmp_pad)
 names(missing_obs) = names(corporate_tree_dataset_2020) # overwrite missing_obs names with corportae tree 
@@ -60,7 +58,7 @@ corporate_tree_dataset_2020 = corporate_tree_dataset_2020 %>%filter(!grepl('*den
 
 corporate_tree_dataset_2020 = corporate_tree_dataset_2020 %>% arrange(Ultimate.Corporate.Parent)
 save(corporate_tree_dataset_2020, file =corporate_tree_data_file) 
-
+print('process_capitalIQ_corporate_tree_raw_data: finished corporate_tree_dataset_2020')
 
 ##############################
 # Get merged entities from Direct Investment Tables
@@ -78,13 +76,26 @@ save(corporate_tree_dataset_2020, file =corporate_tree_data_file)
 options(stringsAsFactors = F)
 invest_data_list = vector('list', length(raw_invest_files))
 for(i in 1:length(raw_invest_files)){
-  #tmp = read_excel(raw_tree_files[i], sheet=1,skip = 6)
-  tmp = gdata::read.xls(raw_invest_files[i], sheet=1,skip = 11,fileEncoding="latin1")
-  # read firm name from file name
-  tmp_name =  substr(raw_invest_files[i], 1,regexpr('Investment Analysis', raw_invest_files[i]))
-  # tmp$parent_name = tmp_name, returns error (14)
-  tmp$parent_name = rep(tmp_name, nrow(tmp))
-  invest_data_list[[i]] = tmp
+  tryCatch({
+    tmp = gdata::read.xls(raw_invest_files[i], sheet=1,skip = 11,fileEncoding="latin1") # change skip = 11 to skip = 15
+    
+    # cat("File read successfully:", raw_invest_files[i], "\n")
+    # col_count <- sapply(tmp, length)
+    # unique_col_counts <- unique(col_count)
+    # 
+    # if (length(unique_col_counts) != 1) {
+    #   inconsistent_rows <- which(col_count != unique_col_counts[1])
+    #   stop(paste("Inconsistent number of columns in file:", raw_invest_files[i], "at rows:", paste(inconsistent_rows, collapse = ", ")))
+    # }
+    
+    # read firm name from file name
+    tmp_name =  substr(raw_invest_files[i], 1,regexpr('Investment Analysis', raw_invest_files[i]))
+    tmp$parent_name = rep(tmp_name, nrow(tmp))
+    invest_data_list[[i]] = tmp
+  }, error = function(e) {
+    cat("Error in file:", raw_invest_files[i], "\n")
+    cat("Error message:", e$message, "\n")
+  })
 }
 
 chk = lapply(invest_data_list, ncol)
@@ -92,14 +103,16 @@ chk = lapply(invest_data_list, ncol)
 indx = c(seq(1,23), ncol(invest_data_list[[1]]))
 invest_history_dataset_2020 = invest_data_list[[1]]
 invest_history_dataset_2020 = invest_history_dataset_2020[,indx]
+print(str(invest_history_dataset_2020)) # mz added
 
 names(invest_history_dataset_2020)[22]='Exit.Date'
 names(invest_history_dataset_2020)[23]='Investor.Holding.Period..yrs.'
 base_names = names(invest_history_dataset_2020)
+print(str(invest_history_dataset_2020))
 
 for(i in 2:length(raw_invest_files)){
   indx = c(seq(1,23), ncol(invest_data_list[[i]]))
-  tmp = invest_data_list[[i]][,indx]
+  tmp = invest_data_list[[i]][,unique(indx)] # MZ: added unique() around indx
   names(tmp)[22]='Exit.Date'
   names(tmp)[23]='Investor.Holding.Period..yrs.'
   
@@ -125,8 +138,6 @@ for(i in 2:length(raw_invest_files)){
       tmp_new = tmp_core
     }
     
-    
-    
     invest_history_dataset_2020 = rbind(invest_history_dataset_2020, tmp_new)  
     
   }
@@ -135,7 +146,7 @@ for(i in 2:length(raw_invest_files)){
 
 # drop trailing rows in each excel file
 
-invest_history_dataset_2020 = invest_history_dataset_2020 %>% filter(!grepl('* denotes that the relationship is proprietary', Company.Name))
+invest_history_dataset_2020 = invest_history_dataset_2020 %>% filter(!grepl('* denotes that the relationship is proprietary', X)) # MZ - change Company.Name to X 
 
 #save(invest_history_dataset_2020, file=paste(output_dir,'invest_history_dataset_2020.RData',sep=''))
 
@@ -143,32 +154,32 @@ invest_history_dataset_2020 = invest_history_dataset_2020 %>% filter(!grepl('* d
 # fix the < 50 mis-read observations 
 ##########
 
-prob_obs = invest_history_dataset_2020 %>% filter(nchar(Relationship.Type)>nchar('Current Subsidiary/Operating Unit'))
+prob_obs = invest_history_dataset_2020 %>% filter(nchar('Prior.Subsidiary.Operating.Unit')>nchar('Current Subsidiary/Operating Unit'))# MZ: changed Relationship.Type in nchar to Prior.Subsidiary.Operating.Unit 
 print(unique(prob_obs$parent_name))
 
 # drop these prob obs
-invest_history_dataset_2020 = invest_history_dataset_2020 %>%  filter(nchar(Relationship.Type)<=nchar('Current Subsidiary/Operating Unit'))
+invest_history_dataset_2020 = invest_history_dataset_2020 %>%  filter(nchar(Prior.Subsidiary.Operating.Unit)<=nchar('Current Subsidiary/Operating Unit')) # MZ: changed Relationship.Type in nchar to Prior.Subsidiary.Operating.Unit 
 
 # load supplement
+# MZ commented out, I don't have this csv
+# missing_obs = read_csv('Novartis_supplementDirectInv.csv')
+# if(ncol(missing_obs) > ncol(invest_history_dataset_2020)){
+#   tmp_pad = matrix('', nrow=nrow(missing_obs), ncol= ncol(missing_obs) - ncol(invest_history_dataset_2020)) 
+#   tmp_pad = as.data.frame(tmp_pad)
+#   missing_obs = data.frame(missing_obs, tmp_pad)
+# } else {
+#   missing_obs = missing_obs[,-c(ncol(missing_obs),ncol(missing_obs)-1)]
+# }
 
-missing_obs = read_csv('Novartis_supplementDirectInv.csv')
-if(ncol(missing_obs) > ncol(invest_history_dataset_2020)){
-  tmp_pad = matrix('', nrow=nrow(missing_obs), ncol= ncol(missing_obs) - ncol(invest_history_dataset_2020)) 
-  tmp_pad = as.data.frame(tmp_pad)
-  missing_obs = data.frame(missing_obs, tmp_pad)
-} else {
-  missing_obs = missing_obs[,-c(ncol(missing_obs),ncol(missing_obs)-1)]
-}
-
-names(missing_obs) = names(invest_history_dataset_2020) # overwrite missing_obs names with corportae tree (has identical columns, just possibly slight variation in labels)
-missing_obs = missing_obs[,names(invest_history_dataset_2020)] # select only the non-missing columns (= ones overlapping with invest_history)
-invest_history_dataset_2020 = rbind(invest_history_dataset_2020, missing_obs)
+# names(missing_obs) = names(invest_history_dataset_2020) # overwrite missing_obs names with corportae tree (has identical columns, just possibly slight variation in labels)
+# missing_obs = missing_obs[,names(invest_history_dataset_2020)] # select only the non-missing columns (= ones overlapping with invest_history)
+# invest_history_dataset_2020 = rbind(invest_history_dataset_2020, missing_obs)
 
 
 relationship_types = c('Current Investment', 'Current Subsidiary/Operating Unit', 'Merged Entity', 'Pending Acquisition/Investment')
-prob_obs = invest_history_dataset_2020 %>% filter(!(Relationship.Type %in% relationship_types))
+prob_obs = invest_history_dataset_2020 %>% filter(!(Prior.Subsidiary.Operating.Unit %in% relationship_types)) # MZ: changed Relationship.Type in nchar to Prior.Subsidiary.Operating.Unit 
 
-invest_history_dataset_2020 = invest_history_dataset_2020 %>% filter((Relationship.Type %in% relationship_types))
+invest_history_dataset_2020 = invest_history_dataset_2020 %>% filter((Prior.Subsidiary.Operating.Unit %in% relationship_types)) # MZ: changed Relationship.Type in nchar to Prior.Subsidiary.Operating.Unit 
 #save(invest_history_dataset_2020, file=paste(output_dir,'invest_history_dataset_2020.RData',sep=''))
 
 #############
@@ -176,7 +187,7 @@ invest_history_dataset_2020 = invest_history_dataset_2020 %>% filter((Relationsh
 #   basically want to add the merged entitites into the corporate tree 
 ############
 
-invest_history_dataset_2020 = invest_history_dataset_2020 %>% filter(Relationship.Type=='Merged Entity')
+invest_history_dataset_2020 = invest_history_dataset_2020 %>% filter(Prior.Subsidiary.Operating.Unit=='Merged Entity')
 
 blank_cols = grepl('X\\.[0-9]', names(corporate_tree_dataset_2020))
 blank_cols = which(blank_cols)
@@ -189,13 +200,29 @@ blank_cols = which(blank_cols)
 corporate_tree_dataset_2020 = corporate_tree_dataset_2020[,-blank_cols]
 corporate_tree_dataset_2020 = corporate_tree_dataset_2020[,-which(names(corporate_tree_dataset_2020)=='X')]
 
+#MZ added renaming the columns
+invest_dataset_names <- c('Company Name', 'Relationship Type', 'Current Level Geography', 'Primary Industry',
+                          'Last Investment Date', 'Pre-Money Valuation ($mm)', 'Post-Money Valuation',
+                          'LTM Ttotal Rev. ($mm)', 'LFQ Total Assests ($mm)', 'LFQ Total Debt ($mm)', 'Period End Date',
+                          'Website', 'Buisness Description', 'Investment Coverage', 'Total Investment ($mm)', 
+                          'Expected Exit Date', 'Percent Owned %', 'Return on Investment', 'Controlling Interest', 'Investor Notes', 
+                          'Transactions', 'Exit.Date', 'Investor.Holding.Period..yrs.', 'parent_name')
+colnames(invest_history_dataset_2020) <- invest_dataset_names
+
+common_columns <- intersect(names(invest_history_dataset_2020), names(corporate_tree_dataset_2020))
+invest_history_dataset_2020 <- invest_history_dataset_2020[, common_columns, drop = FALSE]
+
 # pad invest_history_dataset_2020
+# MZ added if condition bc n_extra_cols is negative 
 n_extra_cols = ncol(corporate_tree_dataset_2020) - ncol(invest_history_dataset_2020)+1
-tmp_pad = matrix('', nrow = nrow(invest_history_dataset_2020), ncol=n_extra_cols)
-residual_cols = setdiff(names(corporate_tree_dataset_2020),names(invest_history_dataset_2020))
-tmp_pad = as.data.frame(tmp_pad)
-names(tmp_pad) = residual_cols
-invest_history_dataset_2020 = data.frame(invest_history_dataset_2020, tmp_pad)
+if (n_extra_cols > 0) {
+  tmp_pad <- matrix('', nrow = nrow(invest_history_dataset_2020), ncol = n_extra_cols)
+  residual_cols <- setdiff(names(corporate_tree_dataset_2020), names(invest_history_dataset_2020))
+  tmp_pad <- as.data.frame(tmp_pad)
+  names(tmp_pad) <- residual_cols
+  invest_history_dataset_2020 <- data.frame(invest_history_dataset_2020, tmp_pad)
+}
+
 
 invest_history_dataset_2020 = invest_history_dataset_2020[,names(corporate_tree_dataset_2020)]
 complete_corporate_tree_dataset_2020 = rbind(corporate_tree_dataset_2020,invest_history_dataset_2020)

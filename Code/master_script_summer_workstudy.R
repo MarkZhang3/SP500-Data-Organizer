@@ -1,12 +1,3 @@
-# Define the custom error handler
-stop_on_error <- function() {
-  traceback(2)
-  stop("Script execution halted due to an error.")
-}
-
-# Set the custom error handler
-options(error = stop_on_error)
-
 ################################################################################################################################
 # Create parent subsidiary and M&A historical datasets  
 #
@@ -73,7 +64,7 @@ source(paste0(base_path, '/code/setup/basic_options_and_utility_functions.R'))
 #############################################################
 
 output_dir <- base_path
-subsidiary_dataset_file = paste1(output_dir, 'firm_data/subsidiary_dataset.RData')
+subsidiary_dataset_file = paste1(output_dir, '/processed_data/firm_data/subsidiary_dataset.RData')
 # subsidiary_dataset_file = paste0(output_dir, 'firm_data/subsidiary_dataset.RData')
 
 code_dir <- paste0(base_path, '/Code/raw_processing/')

@@ -72,21 +72,7 @@ full_capiq_merger_dataset_2020_no_id = full_capiq_merger_dataset_2020 %>% filter
 full_capiq_merger_dataset_2020_w_id = full_capiq_merger_dataset_2020 %>% filter(!is.na(`CIQ Transaction ID`))
 
 stopifnot(nrow(full_capiq_merger_dataset_2020_no_id)==0)
-  
 
-# generate new transaction identifiers for transactions without an ID number
-  # IQ transaction numbers are of form: IQTR#######
-  # synthetic ID number: MRTR#######
-    # ID number is created for transaction which has the same announcement date, buyers / sellers, and transaction status
-
-# full_capiq_merger_dataset_2020_no_id = full_capiq_merger_dataset_2020_no_id %>% 
-#    group_by(`All Transactions Announced Date`,`Excel Company ID [Sellers]`,`Excel Company ID [Buyers/Investors]`, `Target/Issuer`,`Transaction Status`,`Buyers/Investors`) %>%
-#   mutate(CIQ_transaction_id=dplyr::cur_group_id()) %>% mutate(CIQ_transaction_id =paste1('MRTR',CIQ_transaction_id))
-  
-
-#full_capiq_merger_dataset_2020 = rbind(full_capiq_merger_dataset_2020_w_id,full_capiq_merger_dataset_2020_no_id)
-
-#full_capiq_merger_dataset_2020 = full_capiq_merger_dataset_2020 %>% filter(non_controlling_acq==0) # drop non-controlling acquisitions
 
 ##################
 # (I) Direct match mergers where target ID = CIQ of subsidiary AND ParentCompany Name == Buyer Name
@@ -110,11 +96,13 @@ nodirect_match_subsidiaries_tree = nodirect_match_subsidiaries %>% ungroup() %>%
 print(paste('Number of direct match subsidiaries:', nrow(direct_match_subsidiaries), ' which accounts for fraction ', nrow(direct_match_subsidiaries)/nrow(complete_corporate_tree_dataset_2020)))
 direct_match_subsidiaries = direct_match_subsidiaries %>% 
   mutate(merge_match_type='IAi')
+
+# stop if there's rows missing
 stopifnot(nrow(direct_match_subsidiaries) + nrow(nodirect_match_subsidiaries_tree) == nrow(base_merger_complete_corporate_tree_dataset_2020))
 
 
 #######
-# Aii) Direct match using Target string and Buyer Name
+# Aii) Direct match using Target string and Buyer Name (No more target ID = CIQ of subsidiary)
 ######
 
   # match the unmatched from the above
@@ -126,36 +114,17 @@ direct_match_subsidiariesAii = direct_match_subsidiariesAii %>%
   mutate(merge_match_type='IAii')
 
 
-
-# cnames = intersect(names(direct_match_subsidiaries), names(direct_match_subsidiariesAii))
-# direct_match_subsidiaries = direct_match_subsidiaries[,cnames]
-# direct_match_subsidiariesAii = direct_match_subsidiariesAii[,cnames]
-# 
-# direct_match_subsidiaries = rbind(direct_match_subsidiaries,direct_match_subsidiariesAii)
-
-
-#######
-# Aiii) Direct match using Target string and Ultimate parent of target / company (assuming that Ultimate.Corporate.Parent Target/Issuer is a header variable in Capital IQ)
-######
-
-# base_merger_complete_corporate_tree_dataset_2020 = left_join(nodirect_match_subsidiaries_tree, full_capiq_merger_dataset_2020, by=c('Company.Name'='Target/Issuer', 'Ultimate.Corporate.Parent'='Ultimate Corporate Parent [Target/Issuer]'))
-# base_merger_complete_corporate_tree_dataset_2020 = base_merger_complete_corporate_tree_dataset_2020 %>% mutate(`Target/Issuer`=Company.Name, `Ultimate Corporate Parent [Target/Issuer]`= Ultimate.Corporate.Parent)
-# nodirect_match_subsidiaries = base_merger_complete_corporate_tree_dataset_2020 %>% filter(is.na(`CIQ Transaction ID`)) %>% distinct()
-# direct_match_subsidiariesAiii = base_merger_complete_corporate_tree_dataset_2020 %>% filter(!is.na(`CIQ Transaction ID`)) %>% distinct()
-# direct_match_subsidiariesAiii = direct_match_subsidiariesAiii %>% 
-#   mutate(merge_match_type='IAiii')
-
-# combine A and Aii and Aiii matches together
+# combine A and Aii 
+# gives dataset combining M & A transactions with Corporate Tree, where:
+#       target ID = CIQ of subsidiary AND Parent Company Name == Buyer Name
+#       OR Target = Buyer name 
 
 cnames = intersect(names(direct_match_subsidiaries), names(direct_match_subsidiariesAii))
-#cnames = intersect(cnames, names(direct_match_subsidiariesAiii))
 direct_match_subsidiaries = direct_match_subsidiaries[,cnames]
 direct_match_subsidiariesAii = direct_match_subsidiariesAii[,cnames]
-#direct_match_subsidiariesAiii = direct_match_subsidiariesAiii[,cnames]
 
-#direct_match_subsidiaries = rbind(direct_match_subsidiaries,direct_match_subsidiariesAii,direct_match_subsidiariesAiii)
 direct_match_subsidiaries = rbind(direct_match_subsidiaries,direct_match_subsidiariesAii)
-nodirect_match_subsidiaries_tree = nodirect_match_subsidiaries %>% ungroup() %>% select(names(complete_corporate_tree_dataset_2020))
+nodirect_match_subsidiaries_tree = nodirect_match_subsidiaries %>% ungroup() %>% select(names(complete_corporate_tree_dataset_2020)) # store ones that had were unable to match from corp tree 
 
 ##############
 # Case IB: CIQ ID = Target ID
@@ -212,61 +181,7 @@ exact_target_match_subsidiaries = exact_target_match_subsidiaries[,cnames]
 
 matched_subsidiaries_I = rbind(direct_match_subsidiaries,exact_target_match_subsidiaries)
 
-# 
-# ####################
-# # II) Indirect matching -   buyer is exact match, fuzzy match of target
-# #     -useful for identifying acquisition of multiple subsidiaries through parent
-# ####################
-# 
-# # Look at all the acquisitions by the parent, see if any of the acquisitions have a name match 
-#   # OLD: USED ALL THE TREE, NOW JUST USE UNMATCHED SUBSET
-# #exact_parent_id_match_subsidiaries = left_join(complete_corporate_tree_dataset_2020,full_capiq_merger_dataset_2020, by=c('parent_id'="Excel Company ID [Buyers/Investors]")) %>% filter(!is.na(`CIQ Transaction ID`))
-# 
-# exact_parent_id_match_subsidiaries = left_join(noexact_target_match_subsidiaries_tree,full_capiq_merger_dataset_2020, by=c('parent_id'="Excel Company ID [Buyers/Investors]")) 
-# exact_parent_id_match_subsidiaries = exact_parent_id_match_subsidiaries %>% mutate(`Excel Company ID [Buyers/Investors]`=parent_id)
-# noexact_parent_id_match_subsidiaries= exact_parent_id_match_subsidiaries %>% filter(is.na(`CIQ Transaction ID`))
-# exact_parent_id_match_subsidiaries= exact_parent_id_match_subsidiaries %>% filter(!is.na(`CIQ Transaction ID`))
-# 
-# 
-# 
-# exact_parent_id_match_subsidiaries = exact_parent_id_match_subsidiaries %>% 
-#   mutate(company_name_v_target_string_sim = stringdist::stringsim(tolower(str_replace_all(Company.Name,"[^[:alnum:]]", " ")),tolower(str_replace_all(`Target/Issuer`,"[^[:alnum:]]", " ")),method='jw'))
-# 
-# # level of similarity in subsidiary name to target
-# target_match_cutoff = .9
-# exact_parent_id_match_subsidiaries = exact_parent_id_match_subsidiaries %>% 
-#   mutate(target_is_company_ind = ifelse(company_name_v_target_string_sim >= target_match_cutoff, 1,0 ))
-# 
-# # within a parent id, M&A transaction, find the best fit
-# 
-# exact_parent_id_match_subsidiaries = exact_parent_id_match_subsidiaries %>% group_by(parent_id, `CIQ Transaction ID`) %>%
-#   arrange(desc(company_name_v_target_string_sim)) %>% 
-#   mutate(closest_match_ind = ifelse(company_name_v_target_string_sim == max(company_name_v_target_string_sim,na.rm=T), 1,0)) %>%
-#   mutate(target_excel_id_same = ifelse(`Excel Company ID [Target/Issuer]` == CIQ.Company.ID,1,0)) %>%
-#   mutate(exist_target_excel_id_same = max(target_excel_id_same,na.rm=T)) %>%
-#   mutate(is_match = ifelse(target_excel_id_same==1 & !Relationship.Type=='Parent'& `Percent Sought (%)`>= 50,1,0)) %>%
-#   mutate(is_match = ifelse(exist_target_excel_id_same==0 & closest_match_ind==1 & company_name_v_target_string_sim >=target_match_cutoff & !Relationship.Type=='Parent' & `Percent Sought (%)`>= 50,1,is_match)) 
-# 
-# noexact_parent_id_match_subsidiaries = exact_parent_id_match_subsidiaries %>% filter(!is_match==1) 
-# exact_parent_id_match_subsidiaries = exact_parent_id_match_subsidiaries %>% filter(is_match==1) 
-# exact_parent_id_match_subsidiaries = exact_parent_id_match_subsidiaries %>% 
-#   mutate(merge_match_type='II')
-# 
-# 
-# exact_parent_id_match_subsidiaries = exact_parent_id_match_subsidiaries %>% distinct()
-# 
-# print(paste('Number of match type II subsidiaries (Whole foods subs. case) and target:', nrow(exact_parent_id_match_subsidiaries), ' which accounts for fraction ', nrow(exact_parent_id_match_subsidiaries)/nrow(complete_corporate_tree_dataset_2020)))
-# 
-# 
-# # Combine I and II matches together
-# 
-# 
-# cnames = intersect(names(exact_parent_id_match_subsidiaries), names(matched_subsidiaries_I))
-# exact_parent_id_match_subsidiaries = exact_parent_id_match_subsidiaries[,cnames]
-# matched_subsidiaries_I = matched_subsidiaries_I[,cnames]
-# 
-# 
-# matched_subsidiaries_IandII = rbind(matched_subsidiaries_I,exact_parent_id_match_subsidiaries)
+# matchedII got scraped 
 matched_subsidiaries_IandII = matched_subsidiaries_I
 matched_subsidiaries_IandII = matched_subsidiaries_IandII %>% relocate(`CIQ Transaction ID`, `All Transactions Announced Date`,
                                                                        `Deal Resolution`,`Transaction Comments`, Company.Name,

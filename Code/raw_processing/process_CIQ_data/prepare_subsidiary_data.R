@@ -13,7 +13,7 @@
 ####
 # Collate subsidiary / direct investment list of firms
 ####
-compile_trees_from_scratch = F # mz
+compile_trees_from_scratch = T # mz
 
 if(!file.exists(corporate_tree_data_file) | compile_trees_from_scratch==T){ #corporate_tree_data_file = paste(output_dir, 'firm_data/complete_corporate_tree_dataset_2020.RData',sep='')
 
@@ -25,14 +25,14 @@ if(!file.exists(corporate_tree_data_file) | compile_trees_from_scratch==T){ #cor
   load(corporate_tree_data_file)   #load(paste(output_dir, 'firm_data/complete_corporate_tree_dataset_2020.RData',sep='')) 
 
 }
-
+print('finished first if statement (prepare_subsidiary_data)')
 ####
 # Collate merger / sell off transactions
 ####
 ##MZ added if statement
-if (!exists("compile_mergers_from_scratch")) {
-  compile_mergers_from_scratch <- F 
-}
+# if (!exists("compile_mergers_from_scratch")) {
+#   compile_mergers_from_scratch <- F 
+# }
 if(!file.exists(CIQ_merger_dataset_file) | compile_mergers_from_scratch==T){ #CIQ_merger_dataset_file = paste(output_dir, 'firm_data/full_capiq_merger_dataset_2020.RData',sep='')
 
   print('processing capiq merger raw data')
