@@ -136,7 +136,8 @@ exact_target_match_subsidiaries = merge(nodirect_match_subsidiaries_tree, full_c
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% mutate(`Excel Company ID [Target/Issuer]`=`CIQ.Company.ID`)
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% distinct()
 
-Check = exact_target_match_subsidiaries[,c(1:20, which(names(exact_target_match_subsidiaries)=='Excel Company ID [Target/Issuer]'), (ncol(exact_target_match_subsidiaries) - 15):ncol(exact_target_match_subsidiaries))]
+Check = exact_target_match_subsidiaries[,c(1:20, which(names(exact_target_match_subsidiaries)=='CIQ.Company.ID'),
+                                           which(names(exact_target_match_subsidiaries)=='Excel Company ID [Buyers/Investors]'), (ncol(exact_target_match_subsidiaries) - 15):ncol(exact_target_match_subsidiaries))]
 
 tmp1 = function(x, y=parent_id){
   # x is a CIQ ID of a buyer
