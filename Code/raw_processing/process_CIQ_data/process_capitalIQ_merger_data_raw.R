@@ -23,17 +23,21 @@ require(readxl)
 setwd(merger_dir)
 merger_files = list.files()
 merger_files = merger_files[grepl('xls', merger_files)]
-col_type_list_merger_by_date = c('date', 'text', 'text', 'text', 'numeric','text','text','text','numeric','numeric',
-                                 'text','numeric','numeric','numeric','numeric','numeric','numeric','numeric','text',
-                                 'text','text','numeric','numeric','numeric','numeric','numeric','numeric','numeric', 'numeric',
-                                 'numeric','text','text','text','text','text', 'numeric','numeric','date','text',
-                                 'text','date','date','date','date','date','date','date','text','text',
-                                 rep('numeric',16),rep('text',6),'numeric','numeric','numeric')
-
+# col_type_list_merger_by_date = c('date', 'text', 'text', 'text', 'numeric','text','text','text','numeric','numeric',
+#                                  'text','numeric','numeric','numeric','numeric','numeric','numeric','numeric','text',
+#                                  'text','text','numeric','numeric','numeric','numeric','numeric','numeric','numeric', 'numeric',
+#                                  'numeric','text','text','text','text','text', 'numeric','numeric','date','text',
+#                                  'text','date','date','date','date','date','date','date','text','text',
+#                                  rep('numeric',16),rep('text',6),'numeric','numeric','numeric')
+col_type_list_merger_by_date = c('date', 'text', 'text', 'text', 'numeric', 'text', 'text', 'text', 'date', 
+                                 'numeric', 'text', 'numeric', 'text', 'text', 'text', 'text', 'text', 'text',
+                                 'text', 'text', 'date', 'date', 'date', 'date', 'date', 'numeric', 'text', 
+                                 'text', 'text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric',
+                                 'numeric', 'numeric')
 
 merger_data_list = vector('list', length(merger_files))
 for(fn in merger_files){
-  tmp <- read_excel(fn, skip=7, range='A8:BV10010', col_types=col_type_list_merger_by_date)  
+  tmp <- read_excel(fn, skip=7, range='A8:AK99999', col_types=col_type_list_merger_by_date)
   merger_data_list[[which(fn == merger_files)]] = tmp
 }
 chk = sapply(merger_data_list, ncol)
@@ -77,25 +81,22 @@ setwd(mergerSellof_dir)
 merger_files = list.files()
 merger_files = merger_files[grepl('xls', merger_files)]
 
-col_type_list = c('date', 'text', 'text', 'text', 'numeric','text','text','text','numeric','numeric','text','numeric','numeric','numeric','numeric','numeric','numeric','numeric','text','text','text','numeric','numeric','numeric','numeric','numeric','numeric','numeric', 'numeric','numeric','text','text','text','text','text', 'numeric','numeric','text','text','date','date','date','date','date','date',
-                  'text','text',rep('numeric',16),rep('text',7),'numeric','numeric','numeric','numeric','text','text')
+# col_type_list = c('date', 'text', 'text', 'text', 'numeric','text','text','text','numeric','numeric','text','numeric','numeric','numeric','numeric','numeric','numeric','numeric','text','text','text','numeric','numeric','numeric','numeric','numeric','numeric','numeric', 'numeric','numeric','text','text','text','text','text', 'numeric','numeric','text','text','date','date','date','date','date','date',
+#                   'text','text',rep('numeric',16),rep('text',7),'numeric','numeric','numeric','numeric','text','text')
+col_type_list = c('date', 'text', 'text', 'text', 'text', #ABCDE
+                  'numeric', 'text', 'text', 'text', 'date', #FGHIJ
+                  'numeric', 'text', 'numeric', 'numeric', 'numeric', #KLMNO
+                  'date', 'date', 'date', 'date', 'date', # PQRST
+                  'text', 'text', 'text', 'numeric', 'numeric', # UVWXY
+                  'text', 'text', 'text', 'numeric', 'text', #Z AA AB AC AD
+                  'text', 'text', 'text', 'text', 'numeric', # AE AF AG AH AI
+                  'numeric') #AG
 
 require(svMisc)                  
 merger_data_list = vector('list', length(merger_files))
 for(fn in merger_files){
-  #svMisc::progress(which(fn==merger_files), progress.bar=T)
-  #Sys.sleep(.01)
-  tmp <- readxl::read_excel(fn, skip=7, range='A8:BX10010', col_types=col_type_list)
-  # date_cols = names(tmp)[grepl('Date', names(tmp))]
-  # 
-  # #tmp = as.data.frame(tmp)
-  # tmp_fun = function(x){
-  #   x = as.numeric(x)
-  #   #x = lapply(x, function(y) as.Date(y, origin='1899-12-30'))
-  #   #x = do.call(c, x)
-  #   x = as.Date(x, origin='1899-12-30')
-  # }
-  # tmp = tmp %>% mutate(across(date_cols, tmp_fun))
+  # original: tmp <- readxl::read_excel(fn, skip=7, range='A8:BX10010', col_types=col_type_list)
+  tmp <- readxl::read_excel(fn, skip=7, range='A8:AJ99999', col_types=col_type_list)
   i = which(fn == merger_files)
   merger_data_list[[which(fn == merger_files)]] = tmp
   print(which(fn == merger_files))
@@ -168,6 +169,12 @@ capiq_merger_dataset_2020 <- capiq_merger_dataset_2020[, all_columns]
 full_capiq_merger_dataset_2020 <- rbind(capiq_mergerSellOff_dataset_2020_mergersOnly, capiq_merger_dataset_2020)
 #### end of change
 
+## M&A definitive agreement date + M&A closed date, convert from int -> date
+full_capiq_merger_dataset_2020$`M&A Definitive Agreement Date` <- as.Date(as.character(full_capiq_merger_dataset_2020$`M&A Definitive Agreement Date`), format = "%Y%m%d")
+full_capiq_merger_dataset_2020$`M&A Cancelled Date` <- as.Date(as.character(full_capiq_merger_dataset_2020$`M&A Cancelled Date`), format = "%Y%m%d")
+full_capiq_merger_dataset_2020$`M&A Closed Date` <- as.Date(as.character(full_capiq_merger_dataset_2020$`M&A Closed Date`), format = "%Y%m%d")
+full_capiq_merger_dataset_2020$`M&A Effective Date` <- as.Date(as.character(full_capiq_merger_dataset_2020$`M&A Effective Date`), format = "%Y%m%d")
+full_capiq_merger_dataset_2020$`M&A Bid Made Date` <- as.Date(as.character(full_capiq_merger_dataset_2020$`M&A Bid Made Date`), format = "%Y%m%d")
 
 full_capiq_merger_dataset_2020_w_cancelled_transactions= full_capiq_merger_dataset_2020
 save(full_capiq_merger_dataset_2020_w_cancelled_transactions ,file=full_capiq_merger_dataset_2020_w_cancelled_transactions_file)

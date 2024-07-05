@@ -30,7 +30,9 @@ if(!file.exists(corporate_tree_data_w_merger_transactions_file) | compile_prepar
 ########################################################################
 
 source(paste(code_dir, 'fuzzy_match_core_routines/preprocess_firm_name_strings_function.R',sep=''))
-
+if (!exists("compile_fuzzy_string_clean_CIQ_from_scratch")) {
+  compile_fuzzy_string_clean_CIQ_from_scratch <-T
+}
 
 
 if(!file.exists(subsidiary_dataset_file) | compile_fuzzy_string_clean_CIQ_from_scratch==T){

@@ -21,14 +21,14 @@ raw_product_files = raw_files[grepl('Product', raw_files)] # get product files
 
 # MZ: switched it to use readxl, commented out all gdata usage
 # require(readxl)
+## find setting in gdata to handle special characters upon read 
 require(gdata)
 # library(gdata)
 perl <- "C:/strawberry/perl/bin/perl.exe"
 subs_data_list = vector('list', length(raw_tree_files))
 for(i in 1:length(raw_tree_files)){
-  # tmp = read_xls(raw_tree_files[i], sheet=1,skip = 6)
-  tmp = gdata::read.xls(raw_tree_files[i], perl=perl, sheet=1,skip = 4)
-  # tmp = read.xls(raw_tree_files[i], perl=perl, sheet=1,skip = 4)
+  #MZ: added encoding as latin1
+  tmp = gdata::read.xls(raw_tree_files[i], perl=perl, sheet=1,skip = 4, encoding = "latin1")
   parent_name = tmp[1,1]
   parent_id =  tmp[1,2]
   tmp$parent_name = parent_name
@@ -228,8 +228,8 @@ invest_history_dataset_2020 = invest_history_dataset_2020[,names(corporate_tree_
 complete_corporate_tree_dataset_2020 = rbind(corporate_tree_dataset_2020,invest_history_dataset_2020)
 
 # fix minor spacing issue for one remaining observation
-complete_corporate_tree_dataset_2020[which(grepl('Electrosila',complete_corporate_tree_dataset_2020$Relationship.Type)),which(names(complete_corporate_tree_dataset_2020)=='Stake.Type')] = 'Majority'
-complete_corporate_tree_dataset_2020[which(grepl('Electrosila',complete_corporate_tree_dataset_2020$Relationship.Type)),which(names(complete_corporate_tree_dataset_2020)=='Relationship.Type')] = 'Current Subsidiary/Operating Unit'
+# complete_corporate_tree_dataset_2020[which(grepl('Electrosila',complete_corporate_tree_dataset_2020$Relationship.Type)),which(names(complete_corporate_tree_dataset_2020)=='Stake.Type')] = 'Majority'
+# complete_corporate_tree_dataset_2020[which(grepl('Electrosila',complete_corporate_tree_dataset_2020$Relationship.Type)),which(names(complete_corporate_tree_dataset_2020)=='Relationship.Type')] = 'Current Subsidiary/Operating Unit'
 
 # for the parent companies with blank company name, but populated parent name, replace the company name with parent
 complete_corporate_tree_dataset_2020 = complete_corporate_tree_dataset_2020 %>% 

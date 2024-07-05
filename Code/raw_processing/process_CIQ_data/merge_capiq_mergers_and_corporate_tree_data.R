@@ -54,9 +54,9 @@ load(corporate_tree_data_file)
 full_capiq_merger_dataset_2020 = full_capiq_merger_dataset_2020 %>% filter(!`Transaction Status`=='Cancelled')
 
 # eliminate `duplicate` merger transactions, where only difference is wording in  target security type
-
-full_capiq_merger_dataset_2020 = full_capiq_merger_dataset_2020 %>% select(-`Target Security Types`)
-full_capiq_merger_dataset_2020 = unique(full_capiq_merger_dataset_2020)
+# MZ comment out, no target security types column
+# full_capiq_merger_dataset_2020 = full_capiq_merger_dataset_2020 %>% select(-`Target Security Types`)
+# full_capiq_merger_dataset_2020 = unique(full_capiq_merger_dataset_2020)
 
 full_capiq_merger_dataset_2020 = full_capiq_merger_dataset_2020 %>% group_by(`CIQ Transaction ID`) %>% mutate(num_obs_per_trans_id = n())
 full_capiq_merger_dataset_2020 = full_capiq_merger_dataset_2020 %>% mutate(non_controlling_acq = ifelse(`Percent Sought (%)` < 50,1,0))
@@ -131,32 +131,48 @@ nodirect_match_subsidiaries_tree = nodirect_match_subsidiaries %>% ungroup() %>%
 # determine if buyer is ParentCompany / Ultimate Parent Company / other sub of Ultimate parent
 # - buyer ID is in the list of subsidiaries of the ultimate parent 
 
-
-exact_target_match_subsidiaries = left_join(nodirect_match_subsidiaries_tree, full_capiq_merger_dataset_2020, by=c('CIQ.Company.ID'='Excel Company ID [Target/Issuer]'))
+# exact_target_match_subsidiaries = left_join(nodirect_match_subsidiaries_tree, full_capiq_merger_dataset_2020, by=c('CIQ.Company.ID'='Excel Company ID [Target/Issuer]'))
+exact_target_match_subsidiaries = merge(nodirect_match_subsidiaries_tree, full_capiq_merger_dataset_2020, by.x=c('CIQ.Company.ID'),by.y=c('Excel Company ID [Target/Issuer]'))
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% mutate(`Excel Company ID [Target/Issuer]`=`CIQ.Company.ID`)
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% distinct()
 
+Check = exact_target_match_subsidiaries[,c(1:20, which(names(exact_target_match_subsidiaries)=='Excel Company ID [Target/Issuer]'), (ncol(exact_target_match_subsidiaries) - 15):ncol(exact_target_match_subsidiaries))]
 
-
+tmp1 = function(x, y=parent_id){
+  # x is a CIQ ID of a buyer
+  # look up the corporate tree
+  result_ind = 0
+  if(!is.na(x)){
+    buyer_subsidiary = complete_corporate_tree_dataset_2020 %>% filter(CIQ.Company.ID==x)  
+    if(nrow(buyer_subsidiary)>0){
+      #  found at least one match of buyer, now check that they have the same parent 
+      if(any(buyer_subsidiary$parent_id==y)){
+        result_ind = 1  
+      }
+    }
+  }
+  return(result_ind)
+}
 # check that  buyer ID is in the list of subsidiaries of the ultimate parent 
 
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% group_by(Company.Name, CIQ.Company.ID, `CIQ Transaction ID`) %>%
-  mutate(buyer_ID_in_ult_parent_tree_list = max(sapply(strsplit(`Excel Company ID [Buyers/Investors]`, '[:punct:]'), function(x, y=parent_id){
-    # x is a CIQ ID of a buyer
-    # look up the corporate tree
-    result_ind = 0
-    if(!is.na(x)){
-      buyer_subsidiary = complete_corporate_tree_dataset_2020 %>% filter(CIQ.Company.ID==x)  
-      if(nrow(buyer_subsidiary)>0){
-        #  found at least one match of buyer, now check that they have the same parent 
-        if(buyer_subsidiary$parent_id==y){
-          result_ind = 1  
-        }
-      }
-    }
-    return(result_ind)
-  }),na.rm=T))
-
+  mutate(buyer_ID_in_ult_parent_tree_list = max(sapply(strsplit(`Excel Company ID [Buyers/Investors]`, '[:punct:]'), function(x) tmp1(x)),na.rm=T))
+# exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% group_by(Company.Name, CIQ.Company.ID, `CIQ Transaction ID`) %>%
+#   mutate(buyer_ID_in_ult_parent_tree_list = max(sapply(strsplit(`Excel Company ID [Buyers/Investors]`, '[:punct:]'), function(x, y=parent_id){
+#     # x is a CIQ ID of a buyer
+#     # look up the corporate tree
+#     result_ind = 0
+#     if(!is.na(x)){
+#       buyer_subsidiary = complete_corporate_tree_dataset_2020 %>% filter(CIQ.Company.ID==x)  
+#       if(nrow(buyer_subsidiary)>0){
+#         #  found at least one match of buyer, now check that they have the same parent 
+#         if(buyer_subsidiary$parent_id==y){
+#           result_ind = 1  
+#         }
+#       }
+#     }
+#     return(result_ind)
+#   }),na.rm=T))
 
 # duplicate observations possible based on substantively identical merger observations paired to the same subsidiary
 
@@ -165,6 +181,7 @@ exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% group_by(C
 
 # noexact_target_match_subsidiaries = exact_target_match_subsidiaries %>% filter(buyer_ID_in_ult_parent_tree_list==0 | buyer_is_parent_ind==0 | `Percent Sought (%)` < 50)
 # exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% filter(!(buyer_ID_in_ult_parent_tree_list==0 | buyer_is_parent_ind==0 | `Percent Sought (%)` < 50))
+######MZ: this causes exact_target_match_subsidiaries to be 0
 noexact_target_match_subsidiaries = exact_target_match_subsidiaries %>% filter(buyer_ID_in_ult_parent_tree_list==0 | `Percent Sought (%)` < 50)
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% filter(!(buyer_ID_in_ult_parent_tree_list==0 |  `Percent Sought (%)` < 50))
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% mutate(merge_match_type='IB')
@@ -174,17 +191,39 @@ print(paste('Number of match type IB subsidiaries (exact ID match of buyer in co
 
 noexact_target_match_subsidiaries_tree = noexact_target_match_subsidiaries %>% ungroup() %>% select(names(complete_corporate_tree_dataset_2020))
 
+#MZ added
+# Function to remove columns with names like ...[int]
+remove_dot_int_columns <- function(df) {
+  df %>% select(-matches("^\\.\\.\\.\\d+$"))
+}
+
+# Remove columns with names like ...[int] from both data frames
+direct_match_subsidiaries <- remove_dot_int_columns(direct_match_subsidiaries)
+exact_target_match_subsidiaries <- remove_dot_int_columns(exact_target_match_subsidiaries)
+
 cnames = intersect(names(exact_target_match_subsidiaries), names(direct_match_subsidiaries))
-direct_match_subsidiaries = direct_match_subsidiaries[,cnames]
-exact_target_match_subsidiaries = exact_target_match_subsidiaries[,cnames]
+
+## MZ:
+# Get column names and types for both data frames
+# direct_types <- sapply(direct_match_subsidiaries, function(x) class(x)[1])
+# exact_types <- sapply(exact_target_match_subsidiaries, function(x) class(x)[1])
+# 
+# # Identify columns with mismatched types
+# mismatched_columns <- names(direct_types)[direct_types != exact_types]
+# print(mismatched_columns)
+# cnames <- setdiff(cnames, mismatched_columns)
+# 
+# direct_match_subsidiaries = direct_match_subsidiaries[,cnames]
+# exact_target_match_subsidiaries = exact_target_match_subsidiaries[,cnames]
 
 
 matched_subsidiaries_I = rbind(direct_match_subsidiaries,exact_target_match_subsidiaries)
 
 # matchedII got scraped 
+## MZ: I took out 'Deal Resolution' from the list, it didnt exist
 matched_subsidiaries_IandII = matched_subsidiaries_I
 matched_subsidiaries_IandII = matched_subsidiaries_IandII %>% relocate(`CIQ Transaction ID`, `All Transactions Announced Date`,
-                                                                       `Deal Resolution`,`Transaction Comments`, Company.Name,
+                                                                       `Transaction Comments`, Company.Name,
                                                                        `Target/Issuer`, Parent.Company, `Buyers/Investors`,
                                                                        parent_name, Ultimate.Corporate.Parent) %>% 
   arrange(parent_id, `All Transactions Announced Date`,Company.Name) %>% 
@@ -195,7 +234,7 @@ nrow(matched_subsidiaries_IandII)/nrow(complete_corporate_tree_dataset_2020)
 
 # since I dropped the type II matching, 
 
-noexact_parent_id_match_subsidiaries = exact_target_match_subsidiaries
+noexact_parent_id_match_subsidiaries = exact_target_match_subsidiaries # this is 0
 
 ###############################
 # III) fill in subsidiaries of
@@ -220,8 +259,15 @@ parentCompany_acquired_merge = parentCompany_acquired_merge %>% filter(`Percent 
 
 # compute size
 
-
-acquired_size = sapply(parentCompany_acquired_merge$Transactions, function(x){
+# MZ commented out:
+# acquired_size = sapply(parentCompany_acquired_merge$Transactions, function(x){
+#   substr(x,  regexpr('Size ($mm): ', x, fixed=T) + 12, regexpr('Status', x)-3)
+# })
+# MZ replace with: (because Transactions column does not exist)
+# acquired_size = sapply(parentCompany_acquired_merge$`All Transactions Announced Date`, function(x){
+#   substr(x,  regexpr('Size ($mm): ', x, fixed=T) + 12, regexpr('Status', x)-3)
+# })
+acquired_size = sapply(parentCompany_acquired_merge$`Total Transaction Value (CADmm, Historical rate)`, function(x){
   substr(x,  regexpr('Size ($mm): ', x, fixed=T) + 12, regexpr('Status', x)-3)
 })
 parentCompany_acquired_merge$acquired_size = acquired_size
@@ -229,26 +275,55 @@ parentCompany_acquired_merge = parentCompany_acquired_merge %>%
   mutate(acquired_size = ifelse(is.na(acquired_size),`Total Transaction Value ($USDmm, Historical rate)` ,acquired_size)) %>%
   mutate(acquired_size = ifelse(is.na(acquired_size),`Total Gross Transaction Value ($USDmm, Historical rate)` ,acquired_size))
 
-parentCompany_acquired_merge =parentCompany_acquired_merge %>% relocate(`CIQ Transaction ID`, `All Transactions Announced Date`,`Deal Resolution`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50)
+#MZ removed 'Deal Resolution' from list
+parentCompany_acquired_merge =parentCompany_acquired_merge %>% relocate(`CIQ Transaction ID`, `All Transactions Announced Date`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50)
 
 # collapse multiple merger transactions of a subsidiary into the initial one that brought the company under the parent company
 #   add columns with details on internal ownership transfers (i.e. a subsidiary acquired by another subsidiary with the same parent)
 
-parentCompany_acquired_merge  = parentCompany_acquired_merge  %>% group_by(parent_id, Company.Name ) %>% arrange(`All Transactions Announced Date`) %>% 
+parentCompany_acquired_merge  = parentCompany_acquired_merge  %>% group_by(parent_id, Company.Name ) %>% arrange(`All Transactions Announced Date`) %>%
   mutate(internal_transfer_of_ownership = ifelse(row_number() > 1, 1,0)) %>% mutate(latest_transfer_date = max(as.Date(`All Transactions Announced Date`,format='%Y-%m-%d UTC'))) %>%
   mutate(number_of_internal_transfers = n()-1) %>%
   mutate(initial_acquired_date = min(as.Date(`All Transactions Announced Date`,format='%Y-%m-%d UTC'))) %>%
   mutate(latest_acquirer = ifelse(row_number()==n(), `Buyers/Investors`,'')) %>% mutate(latest_acquirer = paste0(latest_acquirer, collapse='')) %>%
   mutate(latest_acquisition_size = ifelse(row_number()==n(),acquired_size, NA_real_)) %>% mutate(latest_acquisition_size = max(latest_acquisition_size,na.rm=T)) %>%
-  mutate(latest_acquisition_buyer_id = ifelse(row_number()==n(),`Excel Company ID [Buyers/Investors]`, '')) %>% 
-  mutate(latest_acquisition_target_id = ifelse(row_number()==n(),`Excel Company ID [Target/Issuer]`, '')) %>% 
+  mutate(latest_acquisition_buyer_id = ifelse(row_number()==n(),`Excel Company ID [Buyers/Investors]`, '')) %>%
+  mutate(latest_acquisition_target_id = ifelse(row_number()==n(),`Excel Company ID [Target/Issuer]`, '')) %>%
   mutate(latest_acquisition_transaction_comments = ifelse(row_number()==n(),`Transaction Comments`, '')) %>%
   mutate(latest_acquisition_transaction_comments = paste0(latest_acquisition_transaction_comments, collapse='')) %>%
   mutate(latest_acquisition_target_id = paste0(latest_acquisition_target_id, collapse='')) %>%
   mutate(latest_acquisition_buyer_id = paste0(latest_acquisition_buyer_id, collapse='')) %>%
   filter(row_number()==1) %>% ungroup()
+# mZ comment out above, replace with: (seems like theres some blank values, and so calling max/min will warning and return -/+ Inf)
+# parentCompany_acquired_merge = parentCompany_acquired_merge %>%
+#   mutate(`All Transactions Announced Date` = as.character(`All Transactions Announced Date`)) %>%
+#   mutate(`All Transactions Announced Date` = na_if(`All Transactions Announced Date`, "")) %>%
+#   mutate(`All Transactions Announced Date` = as.Date(`All Transactions Announced Date`))
+# 
+# parentCompany_acquired_merge  = parentCompany_acquired_merge  %>%
+#   group_by(parent_id, Company.Name) %>%
+#   arrange(`All Transactions Announced Date`) %>%
+#   mutate(
+#     internal_transfer_of_ownership = ifelse(row_number() > 1, 1, 0),
+#     latest_transfer_date = if_else(all(is.na(`All Transactions Announced Date`)), as.Date(NA), max(as.Date(`All Transactions Announced Date`, format='%Y-%m-%d UTC'), na.rm = TRUE)),
+#     number_of_internal_transfers = n() - 1,
+#     initial_acquired_date = if_else(all(is.na(`All Transactions Announced Date`)), as.Date(NA), min(as.Date(`All Transactions Announced Date`, format='%Y-%m-%d UTC'), na.rm = TRUE)),
+#     latest_acquirer = ifelse(row_number() == n(), `Buyers/Investors`, ''),
+#     latest_acquirer = paste0(latest_acquirer, collapse=''),
+#     latest_acquisition_size = ifelse(row_number() == n(), acquired_size, NA_real_),
+#     latest_acquisition_size = ifelse(all(is.na(latest_acquisition_size)), NA_real_, max(latest_acquisition_size, na.rm = TRUE)),
+#     latest_acquisition_buyer_id = ifelse(row_number() == n(), `Excel Company ID [Buyers/Investors]`, ''),
+#     latest_acquisition_target_id = ifelse(row_number() == n(), `Excel Company ID [Target/Issuer]`, ''),
+#     latest_acquisition_transaction_comments = ifelse(row_number() == n(), `Transaction Comments`, ''),
+#     latest_acquisition_transaction_comments = paste0(latest_acquisition_transaction_comments, collapse=''),
+#     latest_acquisition_target_id = paste0(latest_acquisition_target_id, collapse=''),
+#     latest_acquisition_buyer_id = paste0(latest_acquisition_buyer_id, collapse='')
+#   ) %>%
+#   filter(row_number() == 1) %>%
+#   ungroup()
 
-parentCompany_acquired_merge =parentCompany_acquired_merge %>% relocate(merge_match_type,number_of_internal_transfers, internal_transfer_of_ownership,`CIQ Transaction ID`, `All Transactions Announced Date`,`Deal Resolution`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50) %>% arrange(parent_id, Ultimate.Corporate.Parent, Parent.Company,Company.Name, `All Transactions Announced Date`)
+#MZ: removed 'Deal Resolution' from list 
+parentCompany_acquired_merge =parentCompany_acquired_merge %>% relocate(merge_match_type,number_of_internal_transfers, internal_transfer_of_ownership,`CIQ Transaction ID`, `All Transactions Announced Date`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50) %>% arrange(parent_id, Ultimate.Corporate.Parent, Parent.Company,Company.Name, `All Transactions Announced Date`)
 
 
 #noparentCompany_acquired_merge  = parentCompany_acquired_merge %>% mutate(`Target/Issuer`=Parent.Company) %>% filter(is.na(`CIQ Transaction ID`))
@@ -263,7 +338,9 @@ parentCompany_acquired_merge  = parentCompany_acquired_merge  %>% mutate(merge_m
 # add names of parentCompany_acquired_merge to match subs
 
 x = setdiff(names(parentCompany_acquired_merge), names(matched_subsidiaries_IandII))
-class_of_cols = parentCompany_acquired_merge %>% summarize_all(class)
+# MZ commented: class_of_cols = parentCompany_acquired_merge %>% summarize_all(class)
+## MZ changed to:
+class_of_cols = parentCompany_acquired_merge %>% reframe(across(everything(), class)) %>% slice(1)
 class_of_cols = class_of_cols[which(names(parentCompany_acquired_merge) %in% x)]
 make_NA_from_class = function(z){
   # z is class
@@ -275,12 +352,13 @@ make_NA_from_class = function(z){
     y = NA_real_
   }
   if(z=='Date'){
-   y = as.Date('garbage', format='%Y-%m-%d')  # generate NA in date class
+   #y = as.Date('garbage', format='%Y-%m-%d')  # generate NA in date class
+    y = as.Date(NA_character_, format='%Y-%m-%d')  # mz changed
   }
   return(y)
 }
 for(i in 1:length(x)){
-  tmp_NA = make_NA_from_class(class_of_cols[i])
+  tmp_NA = make_NA_from_class(class_of_cols[[1, i]]) #MZ added, ie. originally [i]
   matched_subsidiaries_IandII = matched_subsidiaries_IandII %>% mutate(!!rlang::sym(x[i]) := tmp_NA)
   #make_NA_from_class(class_of_cols[i]))  
 }

@@ -30,9 +30,9 @@ print('finished first if statement (prepare_subsidiary_data)')
 # Collate merger / sell off transactions
 ####
 ##MZ added if statement
-# if (!exists("compile_mergers_from_scratch")) {
-#   compile_mergers_from_scratch <- F 
-# }
+if (!exists("compile_mergers_from_scratch")) {
+  compile_mergers_from_scratch <- T
+}
 if(!file.exists(CIQ_merger_dataset_file) | compile_mergers_from_scratch==T){ #CIQ_merger_dataset_file = paste(output_dir, 'firm_data/full_capiq_merger_dataset_2020.RData',sep='')
 
   print('processing capiq merger raw data')
@@ -48,7 +48,9 @@ if(!file.exists(CIQ_merger_dataset_file) | compile_mergers_from_scratch==T){ #CI
 ####################################
 # Combine M&A data with the complete corporate tree 
 ####################################
-
+if (!exists("compile_from_scratch")) {
+  compile_from_scratch <- T
+}
 if(!file.exists(corporate_tree_data_w_merger_transactions_file)|compile_from_scratch==T){ #subsidiary_dataset_file = paste1(output_dir, 'firm_data/subsidiary_dataset.RData')
 
   source(paste(code_dir, 'process_CIQ_data/merge_capiq_mergers_and_corporate_tree_data.R',sep=''))  
