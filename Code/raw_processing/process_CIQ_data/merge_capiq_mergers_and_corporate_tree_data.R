@@ -83,8 +83,8 @@ complete_corporate_tree_dataset_2020 = complete_corporate_tree_dataset_2020 %>% 
 base_merger_complete_corporate_tree_dataset_2020 = left_join(complete_corporate_tree_dataset_2020, full_capiq_merger_dataset_2020, by=c('CIQ.Company.ID'='Excel Company ID [Target/Issuer]', 'Parent.Company'='Buyers/Investors'))
 
 base_merger_complete_corporate_tree_dataset_2020 = base_merger_complete_corporate_tree_dataset_2020 %>% mutate(`Buyers/Investors`=Parent.Company, `Excel Company ID [Target/Issuer]`= CIQ.Company.ID)
-  # eliminate  duplicates here driven by two merger transaction observations which are identical except for small immaterial details in merger docs 
-
+  
+# eliminate  duplicates here driven by two merger transaction observations which are identical except for small immaterial details in merger docs 
 base_merger_complete_corporate_tree_dataset_2020 = base_merger_complete_corporate_tree_dataset_2020 %>%
   group_by(parent_name, Company.Name, CIQ.Company.ID,`All Transactions Announced Date`, `CIQ Transaction ID`) %>% filter(row_number()==1)
 
@@ -136,15 +136,17 @@ exact_target_match_subsidiaries = merge(nodirect_match_subsidiaries_tree, full_c
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% mutate(`Excel Company ID [Target/Issuer]`=`CIQ.Company.ID`)
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% distinct()
 
-Check = exact_target_match_subsidiaries[,c(1:20, which(names(exact_target_match_subsidiaries)=='CIQ.Company.ID'),
-                                           which(names(exact_target_match_subsidiaries)=='Excel Company ID [Buyers/Investors]'), (ncol(exact_target_match_subsidiaries) - 15):ncol(exact_target_match_subsidiaries))]
+Check = exact_target_match_subsidiaries[,c(1:12, which(names(exact_target_match_subsidiaries)=='parent_id'),
+                                           which(names(exact_target_match_subsidiaries)=='Excel Company ID [Buyers/Investors]'))]
 
 tmp1 = function(x, y=parent_id){
   # x is a CIQ ID of a buyer
   # look up the corporate tree
   result_ind = 0
+  # print(paste("x", x, "y", y))
   if(!is.na(x)){
     buyer_subsidiary = complete_corporate_tree_dataset_2020 %>% filter(CIQ.Company.ID==x)  
+    # print(buyer_subsidiary)
     if(nrow(buyer_subsidiary)>0){
       #  found at least one match of buyer, now check that they have the same parent 
       if(any(buyer_subsidiary$parent_id==y)){
@@ -158,6 +160,7 @@ tmp1 = function(x, y=parent_id){
 
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% group_by(Company.Name, CIQ.Company.ID, `CIQ Transaction ID`) %>%
   mutate(buyer_ID_in_ult_parent_tree_list = max(sapply(strsplit(`Excel Company ID [Buyers/Investors]`, '[:punct:]'), function(x) tmp1(x)),na.rm=T))
+
 # exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% group_by(Company.Name, CIQ.Company.ID, `CIQ Transaction ID`) %>%
 #   mutate(buyer_ID_in_ult_parent_tree_list = max(sapply(strsplit(`Excel Company ID [Buyers/Investors]`, '[:punct:]'), function(x, y=parent_id){
 #     # x is a CIQ ID of a buyer
@@ -271,6 +274,7 @@ parentCompany_acquired_merge = parentCompany_acquired_merge %>% filter(`Percent 
 acquired_size = sapply(parentCompany_acquired_merge$`Total Transaction Value (CADmm, Historical rate)`, function(x){
   substr(x,  regexpr('Size ($mm): ', x, fixed=T) + 12, regexpr('Status', x)-3)
 })
+
 parentCompany_acquired_merge$acquired_size = acquired_size
 parentCompany_acquired_merge = parentCompany_acquired_merge %>%
   mutate(acquired_size = ifelse(is.na(acquired_size),`Total Transaction Value ($USDmm, Historical rate)` ,acquired_size)) %>%
