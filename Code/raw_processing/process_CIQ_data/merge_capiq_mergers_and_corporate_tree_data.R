@@ -146,10 +146,12 @@ tmp1 = function(x, y=parent_id){
   # print(paste("x", x, "y", y))
   if(!is.na(x)){
     buyer_subsidiary = complete_corporate_tree_dataset_2020 %>% filter(CIQ.Company.ID==x)  
+    # print(paste("x", x, "y", y))
     # print(buyer_subsidiary)
     if(nrow(buyer_subsidiary)>0){
       #  found at least one match of buyer, now check that they have the same parent 
       if(any(buyer_subsidiary$parent_id==y)){
+        # print("found true")
         result_ind = 1  
       }
     }
@@ -159,7 +161,11 @@ tmp1 = function(x, y=parent_id){
 # check that  buyer ID is in the list of subsidiaries of the ultimate parent 
 
 exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% group_by(Company.Name, CIQ.Company.ID, `CIQ Transaction ID`) %>%
-  mutate(buyer_ID_in_ult_parent_tree_list = max(sapply(strsplit(`Excel Company ID [Buyers/Investors]`, '[:punct:]'), function(x) tmp1(x)),na.rm=T))
+  mutate(buyer_ID_in_ult_parent_tree_list = max(sapply(strsplit(`Excel Company ID [Buyers/Investors]`, '[:punct:]'), function(x) tmp1(x, y=parent_id)),na.rm=T))
+
+# check number of rows in exact_target_match here 
+# make log file to print out how many rows and all error messages 
+# see how mergers work for one big company 
 
 # exact_target_match_subsidiaries = exact_target_match_subsidiaries %>% group_by(Company.Name, CIQ.Company.ID, `CIQ Transaction ID`) %>%
 #   mutate(buyer_ID_in_ult_parent_tree_list = max(sapply(strsplit(`Excel Company ID [Buyers/Investors]`, '[:punct:]'), function(x, y=parent_id){
@@ -271,14 +277,15 @@ parentCompany_acquired_merge = parentCompany_acquired_merge %>% filter(`Percent 
 # acquired_size = sapply(parentCompany_acquired_merge$`All Transactions Announced Date`, function(x){
 #   substr(x,  regexpr('Size ($mm): ', x, fixed=T) + 12, regexpr('Status', x)-3)
 # })
-acquired_size = sapply(parentCompany_acquired_merge$`Total Transaction Value (CADmm, Historical rate)`, function(x){
+acquired_size = sapply(parentCompany_acquired_merge$`Transaction Comments`, function(x){
   substr(x,  regexpr('Size ($mm): ', x, fixed=T) + 12, regexpr('Status', x)-3)
 })
 
-parentCompany_acquired_merge$acquired_size = acquired_size
-parentCompany_acquired_merge = parentCompany_acquired_merge %>%
-  mutate(acquired_size = ifelse(is.na(acquired_size),`Total Transaction Value ($USDmm, Historical rate)` ,acquired_size)) %>%
-  mutate(acquired_size = ifelse(is.na(acquired_size),`Total Gross Transaction Value ($USDmm, Historical rate)` ,acquired_size))
+# MZ These columns dont exist
+# parentCompany_acquired_merge$acquired_size = acquired_size
+# parentCompany_acquired_merge = parentCompany_acquired_merge %>%
+#   mutate(acquired_size = ifelse(is.na(acquired_size),`Total Transaction Value ($USDmm, Historical rate)` ,acquired_size)) %>%
+#   mutate(acquired_size = ifelse(is.na(acquired_size),`Total Gross Transaction Value ($USDmm, Historical rate)` ,acquired_size))
 
 #MZ removed 'Deal Resolution' from list
 parentCompany_acquired_merge =parentCompany_acquired_merge %>% relocate(`CIQ Transaction ID`, `All Transactions Announced Date`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50)
@@ -383,7 +390,8 @@ merger_history_complete_corporate_tree_dataset_2020 =merger_history_complete_cor
 
 
 
-chk = merger_history_complete_corporate_tree_dataset_2020 %>% group_by(parent_id, Company.Name) %>% mutate(num_subs = n()) %>% filter(num_subs > 1) %>% arrange(Company.Name, merge_match_type, desc(acquired_size), `All Transactions Announced Date`) %>% relocate(merge_match_type,number_of_internal_transfers, internal_transfer_of_ownership,`CIQ Transaction ID`, `All Transactions Announced Date`,`Deal Resolution`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50) %>% arrange(parent_id, Ultimate.Corporate.Parent, Parent.Company,Company.Name, `All Transactions Announced Date`)
+# chk = merger_history_complete_corporate_tree_dataset_2020 %>% group_by(parent_id, Company.Name) %>% mutate(num_subs = n()) %>% filter(num_subs > 1) %>% arrange(Company.Name, merge_match_type, desc(acquired_size), `All Transactions Announced Date`) %>% relocate(merge_match_type,number_of_internal_transfers, internal_transfer_of_ownership,`CIQ Transaction ID`, `All Transactions Announced Date`,`Deal Resolution`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50) %>% arrange(parent_id, Ultimate.Corporate.Parent, Parent.Company,Company.Name, `All Transactions Announced Date`)
+chk = merger_history_complete_corporate_tree_dataset_2020 %>% group_by(parent_id, Company.Name) %>% mutate(num_subs = n()) %>% filter(num_subs > 1) %>% arrange(Company.Name, merge_match_type, desc(acquired_size), `All Transactions Announced Date`) %>% relocate(merge_match_type,number_of_internal_transfers, internal_transfer_of_ownership,`CIQ Transaction ID`, `All Transactions Announced Date`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50) %>% arrange(parent_id, Ultimate.Corporate.Parent, Parent.Company,Company.Name, `All Transactions Announced Date`)
 num_dups = nrow(chk)
 num_distinct_subs_w_dups = length(unique(chk$Company.Name))
 
@@ -440,9 +448,10 @@ acquired_size = sapply(merger_history_complete_corporate_tree_dataset_2020$Trans
 
 merger_history_complete_corporate_tree_dataset_2020$acquired_size = acquired_size
 
+#MZ changed $USDmm to CADmm
 merger_history_complete_corporate_tree_dataset_2020 = merger_history_complete_corporate_tree_dataset_2020 %>%
-  mutate(acquired_size = ifelse(is.na(acquired_size),as.numeric(`Total Transaction Value ($USDmm, Historical rate)`) ,as.numeric(acquired_size))) %>%
-  mutate(acquired_size = ifelse(is.na(acquired_size), as.numeric(`Total Gross Transaction Value ($USDmm, Historical rate)` ),acquired_size))
+  mutate(acquired_size = ifelse(is.na(acquired_size),as.numeric(`Total Transaction Value (CADmm, Historical rate)`) ,as.numeric(acquired_size))) # %>%
+  # mutate(acquired_size = ifelse(is.na(acquired_size), as.numeric(`Total Gross Transaction Value ($USDmm, Historical rate)` ),acquired_size))
 
 
 
@@ -454,7 +463,8 @@ merger_history_complete_corporate_tree_dataset_2020 = merger_history_complete_co
 
 
 tab_merge_type = table(merger_history_complete_corporate_tree_dataset_2020$merge_match_type, useNA='ifany')
-setwd(paste1(output_dir,'tmp/'))
+# setwd(paste1(output_dir,'tmp/'))
+setwd(paste1(output_dir, '/Output/tmp/'))
 stargazer(as.matrix(tab_merge_type), out=paste0(tables_dir,'summary_table_merger_complete_corporate_tree_dataset_2020.tex'),
           title='Type of matches', dep.var.caption ='', label='merger corporate tree matches')
 

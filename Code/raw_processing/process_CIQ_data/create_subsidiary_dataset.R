@@ -40,6 +40,9 @@ if(!file.exists(subsidiary_dataset_file) | compile_fuzzy_string_clean_CIQ_from_s
   print('starting cleaning of merger history corporate tree (CIQ firms)')
   load(corporate_tree_data_w_merger_transactions_file)
   merger_history_complete_corporate_tree_dataset_2020 = merger_history_complete_corporate_tree_dataset_2020 %>% ungroup()
+  ## MZ Added:
+  temp_dir = paste(output_dir, '/Output/tmp/', sep='')
+  ## end of addition
   merger_history_complete_corporate_tree_dataset_2020 = preprocess_firm_name_strings(merger_history_complete_corporate_tree_dataset_2020, 'parent_name',remove_trailing_phrases=F)
   merger_history_complete_corporate_tree_dataset_2020 = merger_history_complete_corporate_tree_dataset_2020 %>%
     rename(parent_company_name = company_name)
@@ -49,7 +52,6 @@ if(!file.exists(subsidiary_dataset_file) | compile_fuzzy_string_clean_CIQ_from_s
   
   subsidiary_dataset=fread(intermediate_subsidiary_dataset_parent_processed_file)
     #intermediate_subsidiary_dataset_parent_processed_file = paste(output_dir, 'firm_data/merger_history_complete_corporate_tree_dataset_2020_parent_processed.csv', sep='')
-  
   
   subsidiary_dataset = preprocess_firm_name_strings(subsidiary_dataset, 'Company.Name',remove_trailing_phrases=F)
   

@@ -5,10 +5,10 @@
 # 	Previously: Oct 14, 2020 
 # Github 2023 reverted
 
-
 ##############################
 # Utility functions
 ##############################
+print("opened preprocessed_firm_name_strings_function.R")
 
 Require::Require("textclean", repo=repository)
 # clean firm name
@@ -144,8 +144,9 @@ remove_trailing_phrases_uspto_abridged <- function(x){
 
 # abbreviate common firm identifiers,
 #   remove punctuation, extra spacing, etc.
-preprocess_firm_name_strings = function(df, firm_name_col='firm_name', remove_trailing_phrases=F, output_df=T, tmp_output_dir = temp_dir, tmp_output_filename='RS_tmp_df_preprocess'){
 
+## MZ: did not define temp_dir
+preprocess_firm_name_strings = function(df, firm_name_col='firm_name', remove_trailing_phrases=F, output_df=T, tmp_output_dir = temp_dir, tmp_output_filename='RS_tmp_df_preprocess'){
   # output_df = T => return data.table (default)
 	# set output_df = F  for pbsapply parallel processing 
   # load table of common company acronymns / types
@@ -284,7 +285,14 @@ preprocess_firm_name_strings = function(df, firm_name_col='firm_name', remove_tr
 	df[	,division_of_name3 := strsplit(company_name, ' div ')[[1]][2], by=1:nrow(df)]
 
 	# consolidate dba name 
-	df[,dba_name := '']	
+	## MZ: changed dba_name = '' -> NA_Character_
+	# df[,dba_name := NA_character_]	
+	## for debugging:
+	# name = deparse(substitute(df))
+	# print(name)
+	# View(df)
+	df[, dba_name := as.character("")]
+	df[, dba_name := rep("", .N)] # MZ ADDED
 	df[,dba_name := fifelse(!is.na(dba_name1), dba_name1, dba_name)]
 	df[,dba_name := fifelse(!is.na(dba_name2) & is.na(dba_name), dba_name2, dba_name)]
 	df[,dba_name := fifelse(!is.na(dba_name3) & is.na(dba_name), dba_name3, dba_name)]
@@ -293,6 +301,7 @@ preprocess_firm_name_strings = function(df, firm_name_col='firm_name', remove_tr
 
 	# consolidate fka name
 	df[,fka_name := '']
+	df[, fka_name := rep("", .N)] ## MZ ADDED
 	df[,fka_name := fifelse(!is.na(fka_name1), fka_name1, fka_name)]
 	df[,fka_name := fifelse(!is.na(fka_name2) & is.na(fka_name), fka_name2, fka_name)]
 	df[,fka_name := fifelse(!is.na(fka_name3) & is.na(fka_name), fka_name3, fka_name)]
@@ -300,6 +309,7 @@ preprocess_firm_name_strings = function(df, firm_name_col='firm_name', remove_tr
 	
 	# consolidate merge name 
 	df[,merge_name := '']
+	df[, merge_name := rep("", .N)] ## MZ ADDED
 	df[,merge_name := fifelse(!is.na(merge_name1), merge_name1, merge_name)]
 	df[,merge_name := fifelse(!is.na(merge_name2) & is.na(merge_name), merge_name2, merge_name)]
 	df[,merge_name := fifelse(!is.na(merge_name3) & is.na(merge_name), merge_name3, merge_name)]
@@ -311,6 +321,7 @@ preprocess_firm_name_strings = function(df, firm_name_col='firm_name', remove_tr
 	
 	# consolidate division name 
 	df[,division_of_name := '']
+	df[, division_of_name := rep("", .N)] ## MZ ADDED
 	df[,division_of_name := fifelse(!is.na(division_of_name1), division_of_name1, division_of_name)]
 	df[,division_of_name := fifelse(!is.na(division_of_name2) & is.na(division_of_name), division_of_name2, division_of_name)]
 	df[,division_of_name := fifelse(!is.na(division_of_name3) & is.na(division_of_name), division_of_name3, division_of_name)]
@@ -373,6 +384,8 @@ preprocess_firm_name_strings = function(df, firm_name_col='firm_name', remove_tr
 	df[,research_foundation_of_ind := 0]
 	df[,trustees_of_ind := fifelse(company_name %like% ' trustees of ',1, trustees_of_ind)]
 	df[,research_foundation_of_ind := fifelse(company_name %like% ' research foundation of ',1, research_foundation_of_ind)]
+	df[, trustees_of_name := rep('', .N)] ## MZ Added
+	df[, research_foundation_of_name := rep('', .N)] ## MZ Added
 	df[,trustees_of_name := strsplit(company_name, ' trustees of ')[[1]][2], by=1:nrow(df)]
 	df[,research_foundation_of_name := strsplit(company_name, ' research foundation of ')[[1]][2], by=1:nrow(df)]
 	df[,trustees_of_name := fifelse(!is.na(trustees_of_name), trustees_of_name, '')]
@@ -430,6 +443,10 @@ preprocess_firm_name_strings = function(df, firm_name_col='firm_name', remove_tr
 	df[,dr_ind := fifelse(firm_name %like% ' dr ',1, dr_ind)]
 	df[,md_ind := fifelse(firm_name %like% ' md ',1, md_ind)]
 	df[,prof_ind := fifelse(firm_name %like% ' prof ',1, prof_ind)]
+	df[, phd_name := rep('', .N)] ## MZ Added
+	df[, prof_name := rep('', .N)] ## MZ Added
+	df[, dr_name := rep('', .N)] ## MZ Added
+	df[, md_name := rep('', .N)] ## MZ Added
 	df[,phd_name := strsplit(firm_name, ' phd ')[[1]][2], by=1:nrow(df)]
 	df[,prof_name := strsplit(firm_name, ' prof ')[[1]][2], by=1:nrow(df)]
 	df[,dr_name := strsplit(firm_name, ' dr ')[[1]][2], by=1:nrow(df)]
@@ -460,7 +477,7 @@ preprocess_firm_name_strings = function(df, firm_name_col='firm_name', remove_tr
 
 	df[,num_characters := nchar(company_name),]
 	df[,num_characters_greater_than_30_ind := fifelse(num_characters>30,1,0) ]
-
+  print("reached checkpoint")
 	fwrite(df, file=paste(tmp_output_dir, tmp_output_filename, "_pre.csv", sep=""))
   # df_old = df
   # rm(df)

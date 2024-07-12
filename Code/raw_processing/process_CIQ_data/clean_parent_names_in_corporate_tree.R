@@ -75,8 +75,13 @@ for(i in ticker_list){
     mutate(parent_name_clean = ifelse(grepl(i, parent_name), stringr::str_sub(parent_name_clean, 1, regexpr(i, parent_name_clean) -1), parent_name_clean)) %>%
     mutate(parent_ticker = ifelse(grepl(i, parent_name), stringr::str_sub(parent_name,  regexpr(i, parent_name), regexpr(i, parent_name) + nchar(i)+4), parent_ticker))
 }
+
+#MZ changed
+library(dplyr)
+library(stringi)
 merger_history_complete_corporate_tree_dataset_2020 = merger_history_complete_corporate_tree_dataset_2020 %>%
   relocate(parent_name_clean, parent_ticker, parent_name, parent_id) %>% arrange(parent_name) %>%
+  mutate(parent_name_clean = stri_trans_general(parent_name_clean, "Latin-ASCII")) %>%  ## mz added
   mutate(parent_name_clean = gsub('[[:punct:]]', ' ', parent_name_clean)) %>% 
   mutate(parent_ticker = gsub(' I$', '', parent_ticker)) %>%
   mutate(parent_name_clean = gsub(' I$', '', parent_name_clean)) %>%

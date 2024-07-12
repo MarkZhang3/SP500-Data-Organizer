@@ -80,7 +80,7 @@ output_data_results_dir =  paste(base_path, '/processed_data/shared/', sep='') #
 
 output_results_dir = paste(base_path, 'Output/', sep='') 
 output_slides_dir = paste(base_path, 'Slides/', sep='') 
-tables_dir = paste(base_path, 'Tables/', sep='')
+tables_dir = paste(base_path, '/Tables/', sep='')
 figures_dir = paste(base_path, 'Figures/', sep='')
 
 # capital IQ subsidiary / merger data 
