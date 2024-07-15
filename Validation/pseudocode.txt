@@ -1,0 +1,37 @@
+final_dataset_file = './final_dataset.csv'
+corporate_trees_directory = './corp_trees/'
+ma_data_dir = './ma_data/'
+
+final_dataset = read the final_dataset_file
+random_numbers = generate like 50 random numbers between 1 - 50,000
+initialize a text file or something to write to, ill call it txt
+
+for each random number:
+    fetch that row number from final_dataset
+    get the column 'Parent Company', also get columns 'All Transaction Announced Date', 'Company Name', 'Target/Issuer', 'Buyer/Investors'
+    there will be 2 searches
+
+    search 1:
+    search within corporate_trees_directory for files that have that parent company inside the file name (there should be 3)
+    one of the 3 files should have 'Corporate Tree' inside the filename (call this corp tree file)
+        inside corp tree file, look at columns 'Company Name' and 'Parent Company', try to find a match to the parent company and company name we fetched from final_dataset 
+    if no matches are found, go back to the three files and look for a file with 'Products' in the filename 
+        in this products file, there are columns 'Product Name' and 'Company'
+        look for match where 'Product Name' == 'Company Name' (from final_dataset) and 'Company' == 'Parent Company' (from final_dataset)
+    write whether or not there was a match to be found to txt, if a match is found write entire rows from both files 
+
+    search 2: 
+    Within ma_data_dir, each file is titled with a date range, ie. '6-6-2024 to 1-1-2023' (the formatting is an EXACT match, like it will for sure be '[day]-[month]-[year] to [day]-[month]-[year]')
+    search for the file where 'All Transaction Announced Date' is within it's titled range 
+    for the selected file, there will be a column called 'All Transaction Announced Date' as well. To be able to differentiate, lets call this 'All Transaction Announced Date (1)'
+    There will be a ton of rows in this file, but they are sorted by date descending in 'All Transaction Announced Date'
+    So, employ binary search to find the rows (note rows plural) that match the 'All Transaction Announced Date' we got from final_dataset
+    write the matched rows to the txt file 
+
+
+
+
+
+# documented issue:
+# Applied Energy Recovery Inc is parent of E Tech, but A. O Smith is parent of Applied Energy Recovery Inc
+# very hard to know to go to A O Smith corp tree to find this info match 
