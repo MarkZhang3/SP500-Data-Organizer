@@ -384,35 +384,37 @@ parentCompany_acquired_merge = parentCompany_acquired_merge[,cnames]
 merger_history_complete_corporate_tree_dataset_2020 = rbind(matched_subsidiaries_IandII, parentCompany_acquired_merge)
 
 # remove duplicate observations (conditional on Company.Name, Merger transaction, any difference is from small )
-
-merger_history_complete_corporate_tree_dataset_2020 =merger_history_complete_corporate_tree_dataset_2020 %>% group_by(parent_id, Company.Name, `CIQ Transaction ID`) %>%
-  arrange(desc(acquired_size), desc(`All Transactions Announced Date`)) %>% filter(row_number()==1) 
+# MZ commented out. acquired_size = 13, not 1 or 5236 (5236 = nrow(merger_history_complete_corporate_tree_dataset_2020))
+# merger_history_complete_corporate_tree_dataset_2020 =merger_history_complete_corporate_tree_dataset_2020 %>% group_by(parent_id, Company.Name, `CIQ Transaction ID`) %>%
+#   arrange(desc(acquired_size), desc(`All Transactions Announced Date`)) %>% filter(row_number()==1)
 
 
 
 # chk = merger_history_complete_corporate_tree_dataset_2020 %>% group_by(parent_id, Company.Name) %>% mutate(num_subs = n()) %>% filter(num_subs > 1) %>% arrange(Company.Name, merge_match_type, desc(acquired_size), `All Transactions Announced Date`) %>% relocate(merge_match_type,number_of_internal_transfers, internal_transfer_of_ownership,`CIQ Transaction ID`, `All Transactions Announced Date`,`Deal Resolution`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50) %>% arrange(parent_id, Ultimate.Corporate.Parent, Parent.Company,Company.Name, `All Transactions Announced Date`)
-chk = merger_history_complete_corporate_tree_dataset_2020 %>% group_by(parent_id, Company.Name) %>% mutate(num_subs = n()) %>% filter(num_subs > 1) %>% arrange(Company.Name, merge_match_type, desc(acquired_size), `All Transactions Announced Date`) %>% relocate(merge_match_type,number_of_internal_transfers, internal_transfer_of_ownership,`CIQ Transaction ID`, `All Transactions Announced Date`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50) %>% arrange(parent_id, Ultimate.Corporate.Parent, Parent.Company,Company.Name, `All Transactions Announced Date`)
-num_dups = nrow(chk)
-num_distinct_subs_w_dups = length(unique(chk$Company.Name))
-
-
-if(nrow(chk)>0){
-  
-  print('Note, same subsidiary company matched with multiple M&A transactions. Selecting the more approrpiate one')
-  print(paste('number of non-unique obs = ',num_dups, ' from ', num_distinct_subs_w_dups, ' distinct companies' ))
-  
-  # removing the ones w
-  print('From inspection, duplicate matches come from IB and III, where III is the most appropriate match')
-  merger_history_complete_corporate_tree_dataset_2020 =merger_history_complete_corporate_tree_dataset_2020 %>% group_by(parent_id, Company.Name) %>%
-    mutate(dup_obs_per_companyName = n()-1) %>% filter(dup_obs_per_companyName ==0 | (dup_obs_per_companyName > 0 & merge_match_type=='III')) 
-}
+### MZ commented this part out
+# chk = merger_history_complete_corporate_tree_dataset_2020 %>% group_by(parent_id, Company.Name) %>% mutate(num_subs = n()) %>% filter(num_subs > 1) %>% arrange(Company.Name, merge_match_type, desc(acquired_size), `All Transactions Announced Date`) %>% relocate(merge_match_type,number_of_internal_transfers, internal_transfer_of_ownership,`CIQ Transaction ID`, `All Transactions Announced Date`,`Transaction Comments`, Company.Name, `Target/Issuer`, Parent.Company, `Buyers/Investors`, parent_name, Ultimate.Corporate.Parent) %>% filter(`Percent Sought (%)` >= 50) %>% arrange(parent_id, Ultimate.Corporate.Parent, Parent.Company,Company.Name, `All Transactions Announced Date`)
+# num_dups = nrow(chk)
+# num_distinct_subs_w_dups = length(unique(chk$Company.Name))
+# 
+# 
+# if(nrow(chk)>0){
+#   
+#   print('Note, same subsidiary company matched with multiple M&A transactions. Selecting the more approrpiate one')
+#   print(paste('number of non-unique obs = ',num_dups, ' from ', num_distinct_subs_w_dups, ' distinct companies' ))
+#   
+#   # removing the ones w
+#   print('From inspection, duplicate matches come from IB and III, where III is the most appropriate match')
+#   merger_history_complete_corporate_tree_dataset_2020 =merger_history_complete_corporate_tree_dataset_2020 %>% group_by(parent_id, Company.Name) %>%
+#     mutate(dup_obs_per_companyName = n()-1) %>% filter(dup_obs_per_companyName ==0 | (dup_obs_per_companyName > 0 & merge_match_type=='III')) 
+# }
 
 
 # filter out any multiple mergers matched
 #     giving precedence
+## MZ took out desc(acquired_size) from arrange list
 merger_history_complete_corporate_tree_dataset_2020 = merger_history_complete_corporate_tree_dataset_2020 %>%
-  arrange(Company.Name, merge_match_type, desc(acquired_size), `All Transactions Announced Date`)
-  
+  arrange(Company.Name, merge_match_type, `All Transactions Announced Date`)
+
 print(paste('Number of matches of all types:', nrow(merger_history_complete_corporate_tree_dataset_2020), ' which accounts for fraction ', nrow(merger_history_complete_corporate_tree_dataset_2020)/nrow(complete_corporate_tree_dataset_2020)))
 
 # Now add unmatched corporate tree

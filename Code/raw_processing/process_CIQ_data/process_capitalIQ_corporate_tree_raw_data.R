@@ -26,7 +26,7 @@ require(gdata)
 # library(gdata)
 perl <- "C:/strawberry/perl/bin/perl.exe"
 subs_data_list = vector('list', length(raw_tree_files))
-for(i in 1:50){
+for(i in 1:length(raw_tree_files)){
   #MZ: added encoding as latin1
   tmp = gdata::read.xls(raw_tree_files[i], perl=perl, sheet=1,skip = 4, encoding = "latin1")
   # tmp = read_excel(raw_tree_files[i], sheet=1, skip=4)
@@ -35,6 +35,11 @@ for(i in 1:50){
   tmp$parent_name = parent_name
   tmp$parent_id = parent_id
   subs_data_list[[i]] = tmp
+  
+  ## MZ Added
+  if(any(grepl("\\D", tmp$`CIQ.Company.ID`))){
+    print(paste("Non-numeric characters found in file index:", i, "File name:", raw_tree_files[i]))
+  }
 }
 
 corporate_tree_dataset_2020 = do.call(rbind, subs_data_list)
