@@ -1,0 +1,6 @@
+/Validation/.env
+/Validation/WRDS_CIQ_Identifiers_Master_Table.csv
+/Validation/all_wrds.csv
+/processed_data/firm_data_old/merger_history.csv
+/processed_data/firm_data_old/merger_history_complete_corporate_tree_dataset_June2024_parent_processed.csv
+/processed_data/firm_data/merger_history_complete_corporate_tree_dataset_June2024_parent_processed.csv
